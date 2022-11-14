@@ -79,7 +79,7 @@ public class Automation {
                 case COMMENT -> {
                     // / /*
                     helper.put(States.COMMENT, c -> { return c == '\\' || c == '*';});
-                    helper.put(States)
+
                 }
                 case DIRECTIVE -> {
                 }
