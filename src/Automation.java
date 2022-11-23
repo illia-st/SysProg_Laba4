@@ -1,4 +1,3 @@
-import javax.swing.plaf.nimbus.State;
 import java.util.*;
 import java.util.function.Predicate;
 
@@ -8,6 +7,9 @@ public class Automation {
         public State_Status current_stateStatus;
         public State_Status previous_state;
         public StringBuilder current_word = new StringBuilder();
+        public void Clear(){
+            current_word.delete(0, current_word.length());
+        }
     }
     private enum State_Status {
         ERROR,
@@ -49,80 +51,90 @@ public class Automation {
     public Automation() {
         for(State_Status state: State_Status.values()){
             State_Info info = new State_Info();
-            HashMap<State_Status, State_Info> helper = new HashMap<>();
-//            HashMap<State_Status, Predicate<Character>> helper = new HashMap<>();
+
             switch (state){
                 case ERROR -> {
                     info.SetTransition(State_Status.ERROR, c -> {return !punctuators.contains(Character.toString(c));});
                     info.SetTransition(State_Status.FINAL, c -> {return punctuators.contains(Character.toString(c)) || c == '\\';});
                 }
                 case IDENTIFIER -> {
-                    helper.put(State_Status.IDENTIFIER, c -> {return Character.isLetter(c) || Character.isDigit(c) || c == '_';});
-                    helper.put(State_Status.FINAL, c -> {return punctuators.contains(Character.toString(c)) ||
-                            half_operators.contains(Character.toString(c)) || c == '\\';});
-                    helper.put(State_Status.ERROR, c -> {return c == '#' || c == '\'' || c == '"'; });
+                    info.SetTransition(State_Status.IDENTIFIER, c -> {return Character.isLetter(c) || Character.isDigit(c) || c == '_';});
+                    info.SetTransition(State_Status.FINAL, c -> {return punctuators.contains(Character.toString(c)) ||
+                            half_operators.contains(Character.toString(c)) || c == '/';});
+                    info.SetTransition(State_Status.ERROR, c -> {return c == '#' || c == '\'' || c == '"'; });
                 }
                 case NUMBER -> {
-                    helper.put(State_Status.NUMBER, c -> {return Character.isDigit(c) || c == 'x' || allowed_letters_in_hex.contains(c);});
-                    helper.put(State_Status.FINAL, c -> {return punctuators.contains(Character.toString(c)) || half_operators.contains(Character.toString(c))
-                             || c == '\\';});
-                    helper.put(State_Status.ERROR, c -> {return Character.isLetter(c) || c == '#' || c == '\'' || c == '"';});
+                    info.SetTransition(State_Status.NUMBER, c -> {return Character.isDigit(c) || c == 'x' || allowed_letters_in_hex.contains(c);});
+                    info.SetTransition(State_Status.FINAL, c -> {return punctuators.contains(Character.toString(c)) || half_operators.contains(Character.toString(c))
+                            || c == '/';});
+                    info.SetTransition(State_Status.ERROR, c -> {return (Character.isLetter(c) && c != 'x' && !allowed_letters_in_hex.contains(c)) || c == '#' || c == '\'' || c == '"';});
                 }
                 case OPERATOR -> {
                     // think over template predicate for
-                    helper.put(State_Status.OPERATOR, c -> {return half_operators.contains(Character.toString(c));});
-                    helper.put(State_Status.FINAL, c -> {return !half_operators.contains(Character.toString(c));});
+                    info.SetTransition(State_Status.OPERATOR, c -> {return half_operators.contains(Character.toString(c));});
+                    info.SetTransition(State_Status.FINAL, c -> {return !half_operators.contains(Character.toString(c));});
                 }
                 case COMMENT -> {
                     // / /*
-                    helper.put(State_Status.COMMENT, c -> { return c == '\\' || c == '*';});
-                    helper.put(State_Status.ERROR, c -> {return c != '\\' && c != '*'; });
+                    info.SetTransition(State_Status.COMMENT, c -> { return c == '/' || c == '*';});
+                    info.SetTransition(State_Status.ERROR, c -> {return c != '/' && c != '*'; });
                 }
                 case DIRECTIVE -> {
-                    helper.put(State_Status.DIRECTIVE, c -> {return Character.isLetterOrDigit(c) || c == '_';});
-                    helper.put(State_Status.FINAL, c -> {return punctuators.contains(Character.toString(c)) || c == '\\';});
-                    helper.put(State_Status.ERROR, c -> {return !Character.isLetterOrDigit(c) && c != '_' && !punctuators.contains(Character.toString(c));});
+                    info.SetTransition(State_Status.DIRECTIVE, c -> {return Character.isLetterOrDigit(c) || c == '_';});
+                    info.SetTransition(State_Status.FINAL, c -> {return punctuators.contains(Character.toString(c)) || c == '/';});
+                    info.SetTransition(State_Status.ERROR, c -> {return !Character.isLetterOrDigit(c) && c != '_' && !punctuators.contains(Character.toString(c));});
                 }
                 case PUNCTUATOR -> {
-                    helper.put(State_Status.FINAL, c->{return punctuators.contains(Character.toString(c));});
+                    info.SetTransition(State_Status.FINAL, c->{return punctuators.contains(Character.toString(c));});
                 }
                 case CHAR_LITERAL -> {
-                    helper.put(State_Status.FINAL, c->{return c == '\'';});
-                    helper.put(State_Status.CHAR_LITERAL,  c -> {return c != '\'';});
+                    info.SetTransition(State_Status.FINAL, c->{return c == '\'';});
+                    info.SetTransition(State_Status.CHAR_LITERAL,  c -> {return c != '\'';});
                 }
                 case STRING_LITERAL -> {
-                    helper.put(State_Status.FINAL, c -> {return c == '"';});
-                    helper.put(State_Status.STRING_LITERAL,  c -> {return c != '"';});
+                    info.SetTransition(State_Status.FINAL, c -> {return c == '"';});
+                    info.SetTransition(State_Status.STRING_LITERAL,  c -> {return c != '"';});
                 }
                 case FINAL -> {
-                    helper.put(State_Status.CHAR_LITERAL, c -> {return c == '\'';});
-                    helper.put(State_Status.STRING_LITERAL, c -> {return c == '"';});
-                    helper.put(State_Status.COMMENT, c-> {return c == '\\';});
-                    helper.put(State_Status.IDENTIFIER, c -> {return Character.isLetter(c) || c == '_';});
-                    helper.put(State_Status.NUMBER, Character::isDigit);
-                    helper.put(State_Status.DIRECTIVE, c -> {return c == '#';});
-                    helper.put(State_Status.PUNCTUATOR, c -> {return punctuators.contains(Character.toString(c));});
-                    helper.put(State_Status.OPERATOR, c -> {return half_operators.contains(Character.toString(c));});
+                    info.SetTransition(State_Status.CHAR_LITERAL, c -> {return c == '\'';});
+                    info.SetTransition(State_Status.STRING_LITERAL, c -> {return c == '"';});
+                    info.SetTransition(State_Status.COMMENT, c-> {return c == '/';});
+                    info.SetTransition(State_Status.IDENTIFIER, c -> {return Character.isLetter(c) || c == '_';});
+                    info.SetTransition(State_Status.NUMBER, Character::isDigit);
+                    info.SetTransition(State_Status.DIRECTIVE, c -> {return c == '#';});
+                    info.SetTransition(State_Status.PUNCTUATOR, c -> {return punctuators.contains(Character.toString(c));});
+                    info.SetTransition(State_Status.OPERATOR, c -> {return half_operators.contains(Character.toString(c));});
                 }
             }
-            states.
+            states.put(state, info);
         }
 
     }
     private ArrayList<Token> tokens = new ArrayList<>();
     private boolean inComment = false;
     private Node node = new Node();
-    private boolean AnaliseHex(){
-        for(int i = 0; i < node.current_word.length(); ++i){
-            if(i == 0 && node.current_word.charAt(i) != '0') return false;
-            if(i == 1 && node.current_word.charAt(i) != 'x') return false;
-            if(i > 1 && !Character.isDigit(node.current_word.charAt(i)) && !Tokenizer.allowed_letters_in_hex.contains(node.current_word.charAt(i))){
-                return false;
+    private boolean AnaliseNumber(){
+        if(node.current_stateInfo.in_hex){
+            for(int i = 0; i < node.current_word.length(); ++i){
+                if(i == 0 && node.current_word.charAt(i) != '0') return false;
+                if(i == 1 && node.current_word.charAt(i) != 'x') return false;
+                if(i > 1 && !Character.isDigit(node.current_word.charAt(i)) && !Tokenizer.allowed_letters_in_hex.contains(node.current_word.charAt(i))){
+                    return false;
+                }
+            }
+        }else{
+            for(int i = 0; i < node.current_word.length(); ++i){
+                if(!Character.isDigit(node.current_word.charAt(i))) return false;
             }
         }
         return true;
     }
-    private void SetFirstState(char first_char, String line){
+    private void SetState(char first_char, String line){
+        if(node.current_stateInfo.in_comment){
+            node.current_stateInfo = states.get(State_Status.COMMENT);
+            node.current_stateStatus = State_Status.COMMENT;
+            return;
+        }
         node.current_word.append(first_char);
         if(Character.isLetter(first_char)){
             // identifier to find
@@ -154,8 +166,10 @@ public class Automation {
 //            tokens.add(new Token(Tokenizer.TokenType.PUNCTUATIONS, Character.toString(first_char)));
         }else if(first_char == '/' && line.length() > 1){
             if(line.charAt(1) == '/'){
+                node.current_stateStatus = State_Status.COMMENT;
                 node.current_stateInfo = states.get(State_Status.COMMENT);
             }else if(line.charAt(1) == '*'){
+                node.current_stateStatus = State_Status.COMMENT;
                 node.current_stateInfo = states.get(State_Status.COMMENT);
                 node.current_stateInfo.in_comment = true;
             }
@@ -200,6 +214,10 @@ public class Automation {
                 }
             }
             case CHAR_LITERAL -> {
+                if(token.charAt(token.length() - 1) != '\''){
+                    tokens.add(new Token(Tokenizer.TokenType.ERROR, token));
+                    break;
+                }
                 if(token.length() >= 3){
                     if(Tokenizer.special_characters.contains(token)){
                         tokens.add(new Token(Tokenizer.TokenType.CHAR_LITERALS, token));
@@ -215,7 +233,11 @@ public class Automation {
                 tokens.add(new Token(Tokenizer.TokenType.NUMBER_LITERALS, token));
             }
             case STRING_LITERAL -> {
-                tokens.add(new Token(Tokenizer.TokenType.STRING_LITERAL, token));
+                if(token.charAt(token.length() - 1) != '"'){
+                    tokens.add(new Token(Tokenizer.TokenType.ERROR, token));
+                }else {
+                    tokens.add(new Token(Tokenizer.TokenType.STRING_LITERAL, token));
+                }
             }
             case PUNCTUATOR -> {
                 tokens.add(new Token(Tokenizer.TokenType.PUNCTUATIONS, token));
@@ -224,15 +246,17 @@ public class Automation {
     }
     public ArrayList<Token> GetTokensFromString(String line){
         tokens.clear();
+        node.Clear();
         line = line.trim();
         if(line.isEmpty()) return tokens;
-        SetFirstState(line.charAt(0), line);
+        SetState(line.charAt(0), line);
         if(node.current_stateStatus == State_Status.COMMENT && !node.current_stateInfo.in_comment){
             return tokens;
         } else if (node.current_stateStatus == State_Status.COMMENT) {
             if(line.contains("*/")){
                 node.current_stateInfo.in_comment = false;
                 line = line.substring(line.indexOf("*/") + 1);
+                node.Clear();
             }else{
                 return tokens;
             }
@@ -241,6 +265,7 @@ public class Automation {
         for(int i = 1; i < line.length(); ++i){
             switch (node.current_stateStatus){
                 case ERROR -> {
+                    --i;
                     Iterator<Map.Entry<State_Status, Predicate<Character>>> it = node.current_stateInfo.GetTransition().entrySet().iterator();
                     while(it.hasNext()){
                         var value = it.next();
@@ -266,26 +291,19 @@ public class Automation {
                         }
                         if(result){
                             node.current_word.append(line.charAt(i));
+                            node.previous_state = State_Status.IDENTIFIER;
                             break;
                         }
                     }
                 }
                 case NUMBER -> {
-                    if(number_start){
-                        if(line.charAt(i) == '0'){
-                            node.current_stateInfo.in_hex = true;
-                        }else{
-                            node.current_stateInfo.in_hex = false;
-                        }
-                        number_start = false;
-                    }
                     Iterator<Map.Entry<State_Status, Predicate<Character>>> it = node.current_stateInfo.GetTransition().entrySet().iterator();
                     while(it.hasNext()){
                         var value = it.next();
                         // if the identifier is wrong
                         boolean result = value.getValue().test(line.charAt(i));
                         if(result && (value.getKey() == State_Status.ERROR || value.getKey() == State_Status.FINAL)){
-                            if(node.current_stateInfo.in_hex && value.getKey() == State_Status.FINAL && !AnaliseHex()){
+                            if(value.getKey() == State_Status.FINAL && !AnaliseNumber()){
                                 node.previous_state = State_Status.NUMBER;
                                 node.current_stateInfo = states.get(State_Status.ERROR);
                                 node.current_stateStatus = State_Status.ERROR;
@@ -294,11 +312,11 @@ public class Automation {
                                 node.current_stateInfo = states.get(value.getKey());
                                 node.current_stateStatus = value.getKey();
                             }
-                            number_start = true;
                             break;
                         }
                         if(result){
                             node.current_word.append(line.charAt(i));
+                            node.previous_state = State_Status.NUMBER;
                             break;
                         }
                     }
@@ -316,6 +334,7 @@ public class Automation {
                         }
                         if(result){
                             node.current_word.append(line.charAt(i));
+                            node.previous_state = State_Status.OPERATOR;
                             break;
                         }
                     }
@@ -328,11 +347,12 @@ public class Automation {
                     }
                     if(node.current_stateInfo.in_comment){
                         if(line.contains("*/")) {
-                            line = line.substring(0, i - 1).concat(line.substring(line.indexOf("*/") + 2));
-                            --i;
+                            line = line.substring(line.indexOf("*/") + 2);
+                            i = 0;
                             node.previous_state = State_Status.COMMENT;
                             node.current_stateInfo = states.get(State_Status.FINAL);
                             node.current_stateStatus = State_Status.FINAL;
+                            node.current_stateInfo.in_comment = false;
                             comment_start = false;
                             break;
                         }
@@ -344,11 +364,13 @@ public class Automation {
                         boolean result = value.getValue().test(line.charAt(i));
                         if(result && value.getKey() == State_Status.COMMENT){
                             if(line.charAt(i) == '*' && line.contains("*/")){
-                                line = line.substring(0, i - 1).concat(line.substring(line.indexOf("*/") + 2));
-                                --i;
+                                line = line.substring(line.indexOf("*/") + 2);
+                                i = 0;
                                 node.previous_state = State_Status.COMMENT;
                                 node.current_stateInfo = states.get(State_Status.FINAL);
                                 node.current_stateStatus = State_Status.FINAL;
+                                node.current_stateInfo.in_comment = false;
+                                node.Clear();
                                 comment_start = false;
                                 break;
                             } else {
@@ -375,6 +397,7 @@ public class Automation {
                         if(result){
                             if(value.getKey() == State_Status.DIRECTIVE || value.getKey() == State_Status.ERROR){
                                 node.current_word.append(line.charAt(i));
+                                node.previous_state = State_Status.DIRECTIVE;
                             }
                             if(value.getKey() == State_Status.FINAL || value.getKey() == State_Status.ERROR){
                                 node.previous_state = State_Status.DIRECTIVE;
@@ -437,11 +460,13 @@ public class Automation {
                 }
                 case FINAL -> {
                     GetTokenFromFinalState();
-                    --i;
-                    while(i < line.length() && Character.isWhitespace(line.charAt(i))){
-                        ++i;
+                    if(node.previous_state != State_Status.PUNCTUATOR) {
+                        i = i == 0 ? i : i - 1;
+                        while (i < line.length() && Character.isWhitespace(line.charAt(i))) {
+                            ++i;
+                        }
+                        if (i == line.length()) break;
                     }
-                    if(i == line.length()) break;
                     Iterator<Map.Entry<State_Status, Predicate<Character>>> it = node.current_stateInfo.GetTransition().entrySet().iterator();
                     while(it.hasNext()){
                         var value = it.next();
@@ -452,13 +477,22 @@ public class Automation {
                             node.current_stateStatus = value.getKey();
                             // in the next state we will analise the symbol again
                             --i;
+                            break;
                         }
                     }
                 }
             }
         }
 
-
+        if(!node.current_word.isEmpty()){
+            GetTokenFromFinalState();
+        }
+        if(node.current_stateStatus != node.previous_state){
+            node.current_word.delete(0, node.current_word.length());
+            SetState(line.charAt(line.length() - 1), line);
+            node.previous_state = node.current_stateStatus;
+            GetTokenFromFinalState();
+        }
         return tokens;
     }
 }

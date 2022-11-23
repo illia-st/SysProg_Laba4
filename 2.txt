@@ -1,0 +1,29 @@
+<identifier> - main
+<punctuation> - (
+<punctuation> - )
+<error> - 1x1234
+<number> - /0xAB123
+<identifier> - as
+<identifier> - as
+<operator> - >
+<preprocessor directive> - #include
+<operator> - <
+<identifier> - asdf
+<operator> - >
+<preprocessor directive> - #include
+<string literal> - "asdasd"
+<string literal> - "
+<preprocessor directive> - #define
+<identifier> - asdf
+<identifier> - asadf
+<error> - /*
+<identifier> - asdfasdf
+<operator> - *
+<keyword> - int
+<identifier> - main
+<punctuation> - (
+<punctuation> - )
+<punctuation> - {
+<keyword> - return
+<number> - 0
+<punctuation> - }
