@@ -29,7 +29,7 @@ public class Main {
         }
         throw new IOException("The file doesn't exist");
     }
-    private static void PrintToFile(String path, ArrayList<Tokenizer.Token> tokens) throws IOException{
+    private static void PrintToFile(String path, ArrayList<Token> tokens) throws IOException{
         File file = new File(path);
         file.createNewFile();
         FileWriter writer = new FileWriter(path);

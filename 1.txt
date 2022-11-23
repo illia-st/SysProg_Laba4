@@ -1,0 +1,14 @@
+#include <asdf>
+#include "asdasd"
+#define asdf asadf
+
+/* asdfasdf
+*/
+
+0xAB123
+1x1234 // asdfasdfasd
+
+
+int main(){
+    return 0;
+}
